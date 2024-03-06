@@ -1,0 +1,9 @@
+services:
+  app:
+    image: php
+    ports:
+      - "8080:80"
+    environment:
+      USER_ID: 1000
+  db:
+    image: nginx

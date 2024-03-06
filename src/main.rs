@@ -1,4 +1,6 @@
 use std::fmt::Display;
+use std::env;
+use std::fs;
 
 use dialoguer::Select;
 
@@ -44,7 +46,13 @@ fn main() -> () {
 fn create_project() {
     let project_type = select_project_type();
 
-    println!("You selected {}", project_type);
+    let file_contents = match project_type {
+        ProjectType::PHP => include_str!("../docker/php.yml"),
+        ProjectType::Rust => include_str!("../docker/rust.yml"),
+    };
+
+    println!("{}", file_contents);
+    let current_dir = env::current_dir().unwrap(); 
 }
 
 fn delete_project() {

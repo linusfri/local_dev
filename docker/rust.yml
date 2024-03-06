@@ -1,0 +1,7 @@
+services:
+  app:
+    image: rust
+    ports:
+      - "80:80"
+    environment:
+      USER_ID: 1000
