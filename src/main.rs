@@ -1,8 +1,10 @@
 use std::fmt::Display;
 use std::env;
 use std::fs;
+use std::io::Write;
 
 use dialoguer::Select;
+use include_dir::include_dir;
 
 #[derive(Clone)]
 enum ProjectType {
@@ -34,6 +36,12 @@ impl Display for Action {
     }
 }
 
+enum FileType<'a> {
+    ComposeFile(&'a str),
+    DockerFile(&'a str),
+    NginxConfig(&'a str)
+}
+
 fn main() -> () {
     let action = select_action();
 
@@ -46,13 +54,46 @@ fn main() -> () {
 fn create_project() {
     let project_type = select_project_type();
 
-    let file_contents = match project_type {
-        ProjectType::PHP => include_str!("../docker/php.yml"),
-        ProjectType::Rust => include_str!("../docker/rust.yml"),
+    match project_type {
+        ProjectType::PHP => { include_str!("../config/docker/php.yml"); },
+        ProjectType::Rust => {
+            let required_files = vec![
+                FileType::DockerFile("config/docker/Dockerfile-rust"),
+                FileType::ComposeFile("config/docker/rust.yml"),
+                FileType::NginxConfig("config/nginx/rust.conf")
+            ];
+            
+            create_project_files(required_files);
+        },
     };
+}
 
-    println!("{}", file_contents);
-    let current_dir = env::current_dir().unwrap(); 
+fn create_project_files(files: Vec<FileType>) {
+    files
+        .iter()
+        .for_each(|f| {
+            match f {
+                FileType::ComposeFile(path) => {
+                    create_file(path, "docker-compose.yml")
+                },
+                FileType::DockerFile(path) => {
+                    create_file(path, "Dockerfile")
+                },
+                FileType::NginxConfig(path) => {
+                    create_file(path, "default.conf")
+                },
+            };
+        });
+}
+
+fn create_file(path: &str, name: &str) {
+    let file_contents = fs::read_to_string(path).unwrap();
+    let mut file_path = env::current_dir().unwrap();
+
+    file_path.push(name);
+    let mut created_file = fs::File::create(file_path).unwrap();
+
+    created_file.write(file_contents.as_bytes()).unwrap();
 }
 
 fn delete_project() {

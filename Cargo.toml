@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 dialoguer = "0.11.0"
 displaydoc = "0.2.4"
+include_dir = "0.7.3"
+
+[build-dependencies]
+include_dir = "0.7.3"
