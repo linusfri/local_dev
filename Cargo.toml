@@ -9,6 +9,7 @@ edition = "2021"
 dialoguer = "0.11.0"
 displaydoc = "0.2.4"
 include_dir = "0.7.3"
+lazy_static = "1.4.0"
 
 [build-dependencies]
 include_dir = "0.7.3"

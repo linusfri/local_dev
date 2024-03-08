@@ -117,6 +117,7 @@ dependencies = [
  "dialoguer",
  "displaydoc",
  "include_dir",
+ "lazy_static",
 ]
 
 [[package]]

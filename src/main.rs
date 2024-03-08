@@ -1,10 +1,11 @@
+use core::panic;
 use std::fmt::Display;
 use std::env;
 use std::fs;
 use std::io::Write;
 
 use dialoguer::Select;
-use include_dir::include_dir;
+use lazy_static::lazy_static;
 
 #[derive(Clone)]
 enum ProjectType {
@@ -36,13 +37,20 @@ impl Display for Action {
     }
 }
 
-enum FileType<'a> {
-    ComposeFile(&'a str),
-    DockerFile(&'a str),
-    NginxConfig(&'a str)
+enum FileType {
+    ComposeFile(String),
+    DockerFile(String),
+    NginxConfig(String)
+}
+
+lazy_static! {
+    static ref APP_PATH: String = {
+        get_config_location()
+    };
 }
 
 fn main() -> () {
+    println!("{}", APP_PATH.to_string());
     let action = select_action();
 
     match action {
@@ -51,16 +59,41 @@ fn main() -> () {
     };
 }
 
+fn get_system_config_location() -> String {
+    match env::var_os("LOCAL_DEV_PATH") {
+        Some(os_path) => os_path.to_str().unwrap().to_string(),
+        None => { panic!("No PATH to local dev config files. Do you have LOCAL_DEV_PATH in your .zshrc / .bashrc?") }
+    }
+}
+
+fn get_config_location() -> String {
+    match env::var("DEV_FILE_PATH") {
+        Ok(path) => path.into(),
+        Err(_) => get_system_config_location()
+    }
+}
+
+fn get_file_path(file_path: String) -> String {
+    let mut real_path = APP_PATH.to_string();
+
+    real_path.push_str(file_path.as_str());
+
+    println!("{}", real_path.clone());
+
+    real_path
+}
+
 fn create_project() {
     let project_type = select_project_type();
+    
 
     match project_type {
         ProjectType::PHP => { include_str!("../config/docker/php.yml"); },
         ProjectType::Rust => {
             let required_files = vec![
-                FileType::DockerFile("config/docker/Dockerfile-rust"),
-                FileType::ComposeFile("config/docker/rust.yml"),
-                FileType::NginxConfig("config/nginx/rust.conf")
+                FileType::DockerFile("config/docker/Dockerfile-rust".to_string()),
+                FileType::ComposeFile("config/docker/rust.yml".to_string()),
+                FileType::NginxConfig("config/nginx/rust.conf".to_string())
             ];
             
             create_project_files(required_files);
