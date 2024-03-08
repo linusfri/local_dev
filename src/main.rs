@@ -50,7 +50,6 @@ lazy_static! {
 }
 
 fn main() -> () {
-    println!("{}", APP_PATH.to_string());
     let action = select_action();
 
     match action {
@@ -73,27 +72,24 @@ fn get_config_location() -> String {
     }
 }
 
-fn get_file_path(file_path: String) -> String {
+fn get_real_path(file_path: String) -> String {
     let mut real_path = APP_PATH.to_string();
 
     real_path.push_str(file_path.as_str());
-
-    println!("{}", real_path.clone());
 
     real_path
 }
 
 fn create_project() {
     let project_type = select_project_type();
-    
 
     match project_type {
         ProjectType::PHP => { include_str!("../config/docker/php.yml"); },
         ProjectType::Rust => {
             let required_files = vec![
-                FileType::DockerFile("config/docker/Dockerfile-rust".to_string()),
-                FileType::ComposeFile("config/docker/rust.yml".to_string()),
-                FileType::NginxConfig("config/nginx/rust.conf".to_string())
+                FileType::DockerFile(get_real_path("config/docker/Dockerfile-rust".to_string())),
+                FileType::ComposeFile(get_real_path("config/docker/rust.yml".to_string())),
+                FileType::NginxConfig(get_real_path("config/nginx/rust.conf".to_string()))
             ];
             
             create_project_files(required_files);
