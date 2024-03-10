@@ -1,0 +1,29 @@
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+      - ./default.conf:/etc/nginx/conf.d/default.conf
+
+  db:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ###
+      MYSQL_DATABASE: ###
+      MYSQL_USER: ###
+      MYSQL_PASSWORD: ###
+
+  php-fpm:
+    build:
+      dockerfile: ./Dockerfile
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+    volumes:
+      - .:/var/www/html
+
+volumes:
+  db_data:
+  app_data:
