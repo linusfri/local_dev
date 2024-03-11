@@ -3,10 +3,11 @@ use std::fmt::Display;
 use std::env;
 use std::fs;
 use std::io::Write;
+use reqwest::Method;
 use tokio::runtime::Runtime;
 use dialoguer::Select;
 use lazy_static::lazy_static;
-
+use dotenv::*;
 use local_dev::git_host_client::GitHostClient;
 
 #[derive(Clone)]
@@ -45,6 +46,22 @@ enum FileType {
     NginxConfig(String)
 }
 
+#[derive(Clone)]
+enum Answer {
+    Yes,
+    No
+}
+
+
+impl Display for Answer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Answer::Yes => write!(f, "Yes"),
+            Answer::No => write!(f, "No"),
+        }
+    }
+}
+
 lazy_static! {
     static ref APP_PATH: String = {
         get_config_location()
@@ -52,7 +69,9 @@ lazy_static! {
 }
 
 fn main() {
-    Runtime::new().unwrap().block_on(get_projects_from_git_host());
+    // Load .env file
+    dotenv().ok();
+
     let action = select_action();
 
     match action {
@@ -70,7 +89,6 @@ fn get_config_location() -> String {
     if let Some(config_location) = config_location {
         config_location
     } else {
-        println!("No DEV_FILE_PATH found, checking os variables.");
         match env::var_os("LOCAL_DEV_PATH") {
             Some(os_path) => os_path.to_str().unwrap().to_string(),
             None => { panic!("No PATH to local dev config files. Do you have LOCAL_DEV_PATH in your .zshrc / .bashrc?") }
@@ -90,6 +108,47 @@ fn select_action() -> Action {
 }
 
 fn create_project() {
+    let options = vec![Answer::Yes, Answer::No];
+    let do_clone_repo = render_selection_list(&options, "Do you want to clone a repo?");
+
+    let do_create_docker_base = render_selection_list(&options, "Do you want to create a base for running docker?");
+    
+    match (do_clone_repo, do_create_docker_base) {
+        (Answer::Yes, Answer::Yes) => {
+            clone_repo();
+            create_docker_base();
+        },
+        (Answer::Yes, Answer::No) => {
+            clone_repo();
+        },
+        (Answer::No, Answer::Yes) => {
+            create_docker_base();
+        },
+        (Answer::No, Answer::No) => {
+            println!("No action taken.");
+        }
+    }
+}
+
+fn clone_repo() {
+    let repos_response = Runtime::new()
+        .unwrap()
+        .block_on(GitHostClient::new().request(Method::GET, "/users/linusfri/repos", None))
+        .unwrap();
+
+    let repos: Vec<serde_json::Value> = serde_json::from_value(repos_response).unwrap();
+    
+    let list_options: Vec<&str> = repos
+        .iter()
+        .map(|repo| {
+            repo.get("full_name").unwrap().as_str().unwrap()
+        })
+        .collect();
+
+    render_selection_list(&list_options, "Repos");
+}
+
+fn create_docker_base() {
     let project_type = select_project_type();
 
     match project_type {
@@ -177,16 +236,4 @@ fn create_file(file_to_read_from: &str, filename_to_be_created: &str) {
 
 fn delete_project() {
     println!("You deleted project");
-}
-
-async fn get_projects_from_git_host() -> String {
-    let client = GitHostClient::new(
-        String::from("https://google.com"),
-        String::from("token")
-    );
-
-    let string = client.request("GET", None).await.unwrap();
-
-    println!("{}", string);
-    string
 }
