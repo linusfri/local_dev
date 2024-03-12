@@ -1,13 +1,15 @@
 use core::panic;
+use std::error::Error;
 use std::fmt::Display;
 use std::env;
 use std::fs;
 use std::io::Write;
+use local_dev::git_host_client::GithubRepoResponse;
 use reqwest::Method;
 use tokio::runtime::Runtime;
 use dialoguer::Select;
 use lazy_static::lazy_static;
-use dotenv::*;
+use dotenv::dotenv;
 use local_dev::git_host_client::GitHostClient;
 
 #[derive(Clone)]
@@ -68,16 +70,18 @@ lazy_static! {
     };
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>>{
     // Load .env file
     dotenv().ok();
 
     let action = select_action();
 
     match action {
-        Action::Create => create_project(),
-        Action::Delete => delete_project()
+        Action::Create => create_project()?,
+        Action::Delete => delete_project()?
     };
+
+    Ok(())
 }
 
 fn get_config_location() -> String {
@@ -107,48 +111,51 @@ fn select_action() -> Action {
     action.clone()
 }
 
-fn create_project() {
+fn create_project() -> Result<(), Box<dyn Error>> {
     let options = vec![Answer::Yes, Answer::No];
-    let do_clone_repo = render_selection_list(&options, "Do you want to clone a repo?");
 
+    let do_clone_repo = render_selection_list(&options, "Do you want to clone a repo?");
     let do_create_docker_base = render_selection_list(&options, "Do you want to create a base for running docker?");
     
     match (do_clone_repo, do_create_docker_base) {
         (Answer::Yes, Answer::Yes) => {
-            clone_repo();
-            create_docker_base();
+            clone_repo()?;
+            create_docker_base()?;
         },
         (Answer::Yes, Answer::No) => {
-            clone_repo();
+            clone_repo()?;
         },
         (Answer::No, Answer::Yes) => {
-            create_docker_base();
+            create_docker_base()?;
         },
         (Answer::No, Answer::No) => {
             println!("No action taken.");
         }
     }
+
+    Ok(())
 }
 
-fn clone_repo() {
-    let repos_response = Runtime::new()
-        .unwrap()
-        .block_on(GitHostClient::new().request(Method::GET, "/users/linusfri/repos", None))
-        .unwrap();
-
-    let repos: Vec<serde_json::Value> = serde_json::from_value(repos_response).unwrap();
-    
-    let list_options: Vec<&str> = repos
-        .iter()
+fn clone_repo() -> Result<(), Box<dyn Error>>{
+    let repos = Runtime::new()?
+        .block_on(GitHostClient::new().request::<Vec<GithubRepoResponse>>(Method::GET, "/user/repos", None))?
+        .into_iter()
         .map(|repo| {
-            repo.get("full_name").unwrap().as_str().unwrap()
+            repo.ssh_url
         })
         .collect();
 
-    render_selection_list(&list_options, "Repos");
+    let selected_repo = render_selection_list(&repos, "Repos");
+    
+    std::process::Command::new("bash")
+        .arg("-c")
+        .arg(format!("{}{}", "git clone ", selected_repo))
+        .output()?;
+
+    Ok(())
 }
 
-fn create_docker_base() {
+fn create_docker_base() -> Result<(), Box<dyn Error>> {
     let project_type = select_project_type();
 
     match project_type {
@@ -162,9 +169,11 @@ fn create_docker_base() {
                 FileType::NginxConfig(get_real_path("config/nginx/rust/default.conf".to_string()))
             ];
             
-            create_project_files(required_files);
+            create_project_files(required_files)?;
         },
     };
+
+    Ok(())
 }
 
 fn select_project_type() -> ProjectType {
@@ -178,6 +187,8 @@ fn select_project_type() -> ProjectType {
     selected_project_type.clone()
 }
 
+/// Renders a selection list which contains every item in items.
+/// By first item in the list is selected by default.
 fn render_selection_list<'a, T>(items: &'a Vec<T>, prompt: &str) -> &'a T
 where T: Display + Clone
 {
@@ -186,11 +197,12 @@ where T: Display + Clone
         .items(&items)
         .default(0)
         .interact()
-        .expect("Something went wrong");
+        .expect("Couldn't render list with selectable items.");
 
     fetch_list_item(&items, selected_index)
 }
 
+/// Returns a reference to item at specified index
 fn fetch_list_item<'a, T>(items: &'a Vec<T>, selected_index: usize) -> &'a T {
     &items[selected_index]
 }
@@ -205,10 +217,12 @@ fn get_real_path(file_path: String) -> String {
     real_path
 }
 
-fn create_project_files(files: Vec<FileType>) {
+/// Reads from every input file in files Vec and outputs
+/// contents in output file corresponding to input files enum variant. 
+fn create_project_files(files: Vec<FileType>) -> Result<(), Box<dyn Error>> {
     files
         .iter()
-        .for_each(|f| {
+        .try_for_each(|f| {
             match f {
                 FileType::ComposeFile(file_to_read_from) => {
                     create_file(file_to_read_from, "docker-compose.yml")
@@ -219,21 +233,27 @@ fn create_project_files(files: Vec<FileType>) {
                 FileType::NginxConfig(file_to_read_from) => {
                     create_file(file_to_read_from, "default.conf")
                 },
-            };
-        });
+            }
+        })?;
+    
+    Ok(())
 }
 
 /// Creates a file in the same directory that the CLI is invoked from
-fn create_file(file_to_read_from: &str, filename_to_be_created: &str) {
-    let file_contents = fs::read_to_string(file_to_read_from).unwrap();
-    let mut file_to_create_path = env::current_dir().unwrap();
+fn create_file(file_to_read_from: &str, filename_to_be_created: &str) -> Result<(), Box<dyn Error>> {
+    let file_contents = fs::read_to_string(file_to_read_from)?;
+    let mut file_to_create_path = env::current_dir()?;
 
     file_to_create_path.push(filename_to_be_created);
-    let mut created_file = fs::File::create(file_to_create_path).unwrap();
+    let mut created_file = fs::File::create(file_to_create_path)?;
 
-    created_file.write(file_contents.as_bytes()).unwrap();
+    created_file.write(file_contents.as_bytes())?;
+
+    Ok(())
 }
 
-fn delete_project() {
+fn delete_project() -> Result<(), Box<dyn Error>> {
     println!("You deleted project");
+
+    Ok(())
 }
