@@ -51,7 +51,6 @@ impl GitHostClient {
 
         match json {
             Ok(value) => {
-                println!("{:#?}", value);
                 Ok(value)
             },
             Err(err) => {
