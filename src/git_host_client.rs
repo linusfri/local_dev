@@ -30,12 +30,16 @@ impl GitHostClient {
         let client = reqwest::Client::new();
         let request_url = format!("{}{}", &self.url, endpoint);
         let token = format!("{}{}", "Bearer ", &self.token);
+        let user = match self.user.as_ref() {
+            None => "none",
+            Some(user) => user
+        };
 
         let body = match method {
             Method::GET => {
                 client
                     .get(request_url)
-                    .header("User-Agent", self.user.as_ref().unwrap())
+                    .header("User-Agent", user)
                     .header::<&str, &str>("Authorization", &token)
                     .send().await
             },

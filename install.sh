@@ -29,12 +29,21 @@ else
     echo -e "export LOCAL_DEV_PATH=$HOME/local_dev/" >> ~/$SHELL_CONFIG_FILE
 fi
 
+# TODO: accept user input to export following variables:
+#   - GIT_HOST_URL=<string>
+#   - GIT_HOST_TOKEN=<string>
+#   - USER_AGENT=<string>
+# 
+# These must be set in order to make github integration work.
+# Future work will add support for other VCS providers to.
+
 # Copying config files
 if [ ! -d "$HOME/local_dev" ]; then
     mkdir $HOME/local_dev
 fi
 
 cp -r ./config $HOME/local_dev
+echo "Copied config files to $HOME/local_dev"
 
 # Copying binary to /usr/local/bin
 sudo cp ./target/release/local_dev $USR_LOCAL_BIN/local-dev
