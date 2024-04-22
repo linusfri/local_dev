@@ -4,6 +4,7 @@ use std::fmt::Display;
 use std::env;
 use std::fs;
 use std::io::Write;
+use local_dev::db_remote_client;
 use local_dev::git_host_client::GithubRepoResponse;
 use reqwest::Method;
 use tokio::runtime::Runtime;
@@ -78,7 +79,7 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     match action {
         Action::Create => create_project()?,
-        Action::Delete => delete_project()?
+        Action::Delete => delete_project()?,
     };
 
     Ok(())
