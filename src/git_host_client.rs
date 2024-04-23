@@ -1,6 +1,6 @@
 use std::env;
 use reqwest::Method;
-use reqwest::*;
+use reqwest;
 use core::fmt;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ impl GitHostClient {
         
     }
 
-    pub async fn request<T>(&self, method: Method, endpoint: &str, _data: Option<String>) -> Result<T>
+    pub async fn request<T>(&self, method: Method, endpoint: &str, _data: Option<String>) -> reqwest::Result<T>
     where T: DeserializeOwned + Serialize + fmt::Debug
     {
         let client = reqwest::Client::new();
@@ -46,7 +46,7 @@ impl GitHostClient {
             _ => { todo!() }
         };
 
-        let json: Result<T> = match body {
+        let json: reqwest::Result<T> = match body {
             Ok(res) => {
                 res.json().await
             },

@@ -1,16 +1,13 @@
 use std::error::Error;
 
-pub fn list_remote_docker_instances() -> Result<(), Box<dyn Error>>{
-    // WILL SPLIT BY WHITESPACES... Some columns in docker ps will fuck this up.
-    let container_ids_output = std::process::Command::new("bash")
-        .arg("-c")
-        .arg("ssh do docker ps | awk '{print $1}'")
-        .output()?;
+use docker_api::opts::ContainerListOpts;
 
-    let container_ids_str = String::from_utf8(container_ids_output.stdout)?;
-    
-    println!("{}", container_ids_str);
+pub async fn list_remote_docker_instances() -> Result<(), Box<dyn Error>>{
+    let docker = docker_api::Docker::new("unix:///var/run/docker.sock")?;
 
+    let res = docker.containers().list(&ContainerListOpts::builder().all(true).build()).await?;
+
+    println!("{:#?}", res);
     Ok(())
 }
 
