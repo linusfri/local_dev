@@ -1,9 +1,10 @@
 use local_dev::cli_formatter;
+use local_dev::db_remote_client;
 use local_dev::project_manager;
 use std::error::Error;
 use std::fmt::Display;
 use dotenv::dotenv;
-
+use tokio::runtime::Runtime;
 
 #[derive(Clone)]
 enum Action {
@@ -31,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>>{
     match action {
         Action::Create => project_manager::create_project()?,
         Action::Delete => project_manager::delete_project()?,
-        Action::GetDatabaseFromContainer => ()
+        Action::GetDatabaseFromContainer => Runtime::new().unwrap().block_on(db_remote_client::list_remote_docker_instances())?
     };
 
     Ok(())
