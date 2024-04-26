@@ -2,6 +2,8 @@ use std::error::Error;
 
 use docker_api::{models::ContainerSummary, opts::ContainerListOpts};
 
+use crate::cli_formatter;
+
 pub async fn list_remote_docker_instances() -> Result<(), Box<dyn Error>>{
     let docker = docker_api::Docker::new("unix:///var/run/docker.sock")?;
 
@@ -19,7 +21,13 @@ pub async fn list_remote_docker_instances() -> Result<(), Box<dyn Error>>{
             }
         });
     
-    println!("{:#?}", db_container_names);
+    match db_container_names.len() {
+        length if length > 0 => {
+            let chosen_container_name = cli_formatter::render_selection_list(&db_container_names, "Choose container");
+            get_db_from_container(chosen_container_name);
+        },
+        _ => { println!("No containers found"); }
+    }
 
     Ok(())
 }
@@ -34,6 +42,10 @@ fn filter_out_db_containers(names: &Vec<String>, array_buffer: &mut Vec<String>)
                 }
             }
         })
+}
+
+fn get_db_from_container(container_name: &String) {
+    println!("Got db from {}", container_name);
 }
 
 fn get_running_db_containers(docker_container_response: Vec<ContainerSummary>) -> Vec<ContainerSummary> {
