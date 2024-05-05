@@ -35,8 +35,8 @@ impl Display for Answer {
 pub fn create_project() -> Result<(), Box<dyn Error>> {
     let options = vec![Answer::Yes, Answer::No];
 
-    let do_clone_repo = cli_formatter::render_selection_list(&options, "Do you want to clone a repo?");
-    let do_create_docker_base = cli_formatter::render_selection_list(&options, "Do you want to create a base for running docker?");
+    let do_clone_repo = cli_formatter::render_selection_list(&options, "Do you want to clone a repo?")?;
+    let do_create_docker_base = cli_formatter::render_selection_list(&options, "Do you want to create a base for running docker?")?;
     
     match (do_clone_repo, do_create_docker_base) {
         (Answer::Yes, Answer::Yes) => {
@@ -63,13 +63,13 @@ pub fn delete_project() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn select_project_type() -> ProjectType {
+pub fn select_project_type() -> Result<ProjectType, Box<dyn Error>> {
     let items = vec![
         ProjectType::Rust,
         ProjectType::PHP
     ];
 
-    let selected_project_type = cli_formatter::render_selection_list(&items, "Select project type");
+    let selected_project_type = cli_formatter::render_selection_list(&items, "Select project type")?;
 
-    selected_project_type.clone()
+    Ok(selected_project_type.clone())
 }

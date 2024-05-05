@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>>{
     // Load .env file
     dotenv().ok();
 
-    let action = select_action();
+    let action = select_action()?;
 
     match action {
         Action::Create => project_manager::create_project()?,
@@ -38,14 +38,14 @@ fn main() -> Result<(), Box<dyn Error>>{
     Ok(())
 }
 
-fn select_action() -> Action {
+fn select_action() -> Result<Action, Box<dyn Error>> {
     let actions = vec![
         Action::Create,
         Action::Delete,
         Action::GetDatabaseFromContainer
     ];
 
-    let action = cli_formatter::render_selection_list(&actions, "Select action");
+    let action = cli_formatter::render_selection_list(&actions, "Select action")?;
 
-    action.clone()
+    Ok(action.clone())
 }

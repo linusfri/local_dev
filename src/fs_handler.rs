@@ -67,7 +67,7 @@ pub fn create_file(file_to_read_from: &str, filename_to_be_created: &str) -> Res
 }
 
 pub fn create_docker_base() -> Result<(), Box<dyn Error>> {
-    let project_type = project_manager::select_project_type();
+    let project_type = project_manager::select_project_type()?;
 
     match project_type {
         project_manager::ProjectType::PHP => {
@@ -96,7 +96,7 @@ pub fn clone_repo() -> Result<(), Box<dyn Error>>{
         })
         .collect();
 
-    let selected_repo = cli_formatter::render_selection_list(&repos, "Repos");
+    let selected_repo = cli_formatter::render_selection_list(&repos, "Repos")?;
     
     std::process::Command::new("bash")
         .arg("-c")
