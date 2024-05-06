@@ -8,6 +8,7 @@ pub async fn list_remote_docker_instances() -> Result<(), Box<dyn Error>> {
     let docker = docker_api::Docker::new("unix:///var/run/docker.sock")?;
 
     let filters = vec![
+        ContainerFilter::Ancestor(ImageName::Tag{ image: "mysql".to_string(), tag: Some("5.7-debian".to_string()) }),
         ContainerFilter::Ancestor(ImageName::Tag{ image: "mysql".to_string(), tag: None }),
         ContainerFilter::Status(ContainerStatus::Running)
     ];
