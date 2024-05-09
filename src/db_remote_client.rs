@@ -1,25 +1,29 @@
-use std::{error::Error, process::{ExitStatus, Output}};
-
-use docker_api::opts::{ContainerFilter, ContainerListOpts, ContainerStatus, ImageName};
+use std::{collections::HashMap, error::Error, process::{ExitStatus, Output}};
+use bollard::{container::ListContainersOptions, Docker};
 
 use crate::cli_formatter;
 
-pub async fn list_remote_docker_instances() -> Result<(), Box<dyn Error>> {
-    let docker = docker_api::Docker::new("unix:///var/run/docker.sock")?;
+pub async fn list_local_docker_instances() -> Result<(), Box<dyn Error>> {
+    let docker = Docker::connect_with_local_defaults()?;
 
-    let filters = vec![
-        ContainerFilter::Ancestor(ImageName::Tag{ image: "mysql".to_string(), tag: Some("5.7-debian".to_string()) }),
-        ContainerFilter::Ancestor(ImageName::Tag{ image: "mysql".to_string(), tag: None }),
-        ContainerFilter::Status(ContainerStatus::Running)
-    ];
-    let show_container_opts = ContainerListOpts::builder().filter(filters).build();
-    let container_summary = docker.containers().list(&show_container_opts).await?;
+    let mut filters = HashMap::new();
+    filters.insert("name".to_string(), vec![
+        "db".to_string()
+    ]);
+
+    let list_image_opts = Some(ListContainersOptions::<String> {
+        all: true,
+        filters,
+        ..Default::default()
+    });
+
+    let container_summary = &docker.list_containers(list_image_opts).await?;
 
     let container_names: Vec<String> = container_summary
         .iter()
         .flat_map(|container| container.names.iter())
         .flatten()
-        .cloned()
+        .map(|name| name.trim().to_string())
         .collect();
 
     let container_choice = cli_formatter::render_selection_list(&container_names, "Choose container");
@@ -42,7 +46,7 @@ fn get_db_from_container(container_name: &str) -> Result<(), Box<dyn Error>> {
             .arg("-c")
             .arg(format!("docker exec {container_name} mysql -u {db_user_buffer} -p{db_user_password_buffer} -e \"SHOW DATABASES;\""))
             .output()?;
-        
+
         if output.status.success()  {
             break;
         }
