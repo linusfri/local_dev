@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>>{
     match action {
         Action::Create => project_manager::create_project()?,
         Action::Delete => project_manager::delete_project()?,
-        Action::GetDatabaseFromContainer => Runtime::new().unwrap().block_on(db_remote_client::list_remote_docker_instances())?
+        Action::GetDatabaseFromContainer => Runtime::new().unwrap().block_on(db_remote_client::list_local_docker_instances())?
     };
 
     Ok(())
