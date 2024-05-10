@@ -1,4 +1,5 @@
 use std::{collections::HashMap, error::Error, process::{ExitStatus, Output}};
+use cli_formatter::TerminalOutput;
 use bollard::{container::ListContainersOptions, Docker};
 
 use crate::cli_formatter;
@@ -11,13 +12,13 @@ pub async fn list_local_docker_instances() -> Result<(), Box<dyn Error>> {
         "db".to_string()
     ]);
 
-    let list_image_opts = Some(ListContainersOptions::<String> {
+    let list_container_opts = Some(ListContainersOptions::<String> {
         all: true,
         filters,
         ..Default::default()
     });
 
-    let container_summary = &docker.list_containers(list_image_opts).await?;
+    let container_summary = &docker.list_containers(list_container_opts).await?;
 
     let container_names: Vec<String> = container_summary
         .iter()
@@ -26,12 +27,11 @@ pub async fn list_local_docker_instances() -> Result<(), Box<dyn Error>> {
         .map(|name| name.trim().to_string())
         .collect();
 
-    let container_choice = cli_formatter::render_selection_list(&container_names, "Choose container");
+    let container_choice = cli_formatter::render_selection_list(&container_names, "Choose container (currently only mariadb and mysql are supported)");
     match container_choice {
         Ok(container_choice) => { get_db_from_container(container_choice)?; },
         Err(err) => println!("{err}, you likely have no db containers running.")
     }
-    
 
     Ok(())
 }
@@ -42,30 +42,27 @@ fn get_db_from_container(container_name: &str) -> Result<(), Box<dyn Error>> {
     let mut output = Output {status: ExitStatus::default(), stdout: vec![], stderr: vec![]};
 
     loop {
+        db_user_buffer = cli_formatter::prompt_input("User: ")?;
+        db_user_password_buffer = cli_formatter::prompt_input("Password: ")?;
+
         output = std::process::Command::new("bash")
             .arg("-c")
             .arg(format!("docker exec {container_name} mysql -u {db_user_buffer} -p{db_user_password_buffer} -e \"SHOW DATABASES;\""))
             .output()?;
 
-        if output.status.success()  {
-            break;
+        if output.status.success() {
+            break
+        } else {
+            println!("{}", TerminalOutput::try_from(output)?)
         }
-
-        db_user_buffer = cli_formatter::prompt_input("User: ")?;
-        db_user_password_buffer = cli_formatter::prompt_input("Password: ")?;
     }
 
     let raw_db_string = String::from_utf8(output.stdout)?.trim().to_string();
     let container_databases: Vec<String> = raw_db_string
-        .split("\n")
-        .filter(|db_name| {
-            match *db_name {
-                "Database" => false,
-                _ => true
-            }
-        })
+        .lines()
+        .skip(1) // Skip the header
         .map(|db_name| {
-            db_name.to_string()
+            db_name.trim().to_string()
         })
         .collect();
 
@@ -83,21 +80,30 @@ fn get_db_from_container(container_name: &str) -> Result<(), Box<dyn Error>> {
                 &save_path
             )?
         },
-        _ => { println!("No db selected"); }
+        _ => println!("No db selected")
     }
 
     Ok(())
 }
 
 fn export_db(container_name: &str, user: &str, password: &str, db_name: &str, save_path: &str) -> Result<(), Box<dyn Error>> {
-    std::process::Command::new("bash")
+    let db_export_success = std::process::Command::new("bash")
         .arg("-c")
         .arg(format!("docker exec {container_name} mysqldump -u {user} -p{password} {db_name} > {save_path}/{db_name}.sql"))
-        .output()?;
+        .output();
 
+    match db_export_success {
+        Ok(output) => {
+            if output.status.success() {
+                println!("Database exported to: {save_path}/{db_name}.sql");
+            } else {
+                println!("docker exec didn't exit successfully, error status: {}", output.status);
+            }
+        },
+        Err(export_error) => {
+            println!("Something went wrong, error status: {export_error}");
+        }
+    }
     Ok(())
-
-}
-pub fn list_remote_instances() {
 
 }

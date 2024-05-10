@@ -1,5 +1,7 @@
 
 use std::fmt;
+use std::process::Output;
+use std::fmt::Display;
 use std::io::{self, Write};
 use dialoguer::Select;
 
@@ -21,6 +23,33 @@ impl fmt::Display for IndexError {
 }
 
 impl std::error::Error for IndexError {}
+
+/// Struct to extract text from stderr or stdout depending on which the output was written to.
+/// Convencience to handle stdout and stderr on std::process::Output
+pub struct TerminalOutput {
+    text: String
+}
+
+impl Display for TerminalOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text)
+    }
+}
+
+impl TryFrom<Output> for TerminalOutput {
+    type Error = std::string::FromUtf8Error;
+
+    /// Tries to get the output from stderr or stdout
+    fn try_from(output: Output) -> Result<Self, Self::Error> {
+        let output_text = match (output.stdout.is_empty(), output.stderr.is_empty()) {
+            (true, false) => String::from_utf8(output.stderr)?,
+            (false, true) => String::from_utf8(output.stdout)?,
+            (_, _) => String::from_utf8(output.stdout)? // Should never happen
+        };
+
+        Ok(Self {text: output_text})
+    }
+}
 
 /// Renders a selection list which contains every item in items.
 /// By first item in the list is selected by default.
