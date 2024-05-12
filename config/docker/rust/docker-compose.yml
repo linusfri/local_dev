@@ -13,10 +13,10 @@ services:
   db:
     image: mysql
     environment:
-      MYSQL_DATABASE: mysql
-      MYSQL_USER: mysql-user
-      MYSQL_PASSWORD: mysql
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ###
+      MYSQL_USER: ###
+      MYSQL_PASSWORD: ###
+      MYSQL_ROOT_PASSWORD: ###
     volumes:
       - db_data:/var/lib/mysql
     ports:
@@ -33,7 +33,7 @@ services:
     volumes:
       - ./default.conf:/etc/nginx/conf.d/default
     ports:
-      - 8083:80
+      - 8080:80
 
 
 volumes:
